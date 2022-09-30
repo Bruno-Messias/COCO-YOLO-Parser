@@ -4,6 +4,7 @@ import cv2
 import os
 from os import walk
 import argparse
+from tqdm import tqdm
 
 def env_set(args):
     try:
@@ -22,7 +23,6 @@ def create_obj_name_file(target):
     with open("obj.names", "w") as f:
         for cat in target:
             f.write(cat+'\n')
-
 
 '''
 def get_imageIds(catIds, mode='union'):
@@ -48,7 +48,7 @@ def get_image_and_annotation(args):
     coco = COCO(args.anno)
 
     # list of category that you want to train
-    target = ['car', 'motorcycle']
+    target = ['car', 'chair', 'book', 'bottle']
 
     create_obj_name_file(target)
     # need a mapping table to find the correspondence between coco catId and custom catId
@@ -61,15 +61,21 @@ def get_image_and_annotation(args):
     catIds = coco.getCatIds(catNms=target)
 
     # get all image id contain the target category
-    imgIds = coco.getImgIds(catIds=catIds)
+    # imgIds = coco.getImgIds(catIds=catIds)
     #imgIds = get_imageIds(catIds=catIds, mode='union')
+    imgIds = []
+    for i in catIds:
+      imgIds_i = coco.getImgIds(catIds=i)
+      imgIds = imgIds + imgIds_i
+      imgIds = list(set(imgIds))
     total_num = len(imgIds)
     count = 0
 
     # get all image information by image id
     images = coco.loadImgs(imgIds)
+    # print(images)
 
-    for im in images:
+    for im in tqdm(images):
         # download image
         img_data = requests.get(im['coco_url']).content
 
@@ -80,7 +86,7 @@ def get_image_and_annotation(args):
         # get annotation
         annIds = coco.getAnnIds(imgIds=im['id'])
         anns = coco.loadAnns(annIds)
-        
+
         # create yolo format label file
         label_file_name = f"{args.label_out}/{im['file_name'][:-4]}.txt"
         with open(label_file_name, 'w') as f:
@@ -94,8 +100,8 @@ def get_image_and_annotation(args):
                     f"{inst['bbox'][3]/im['height']}\n"
                 f.write(line)
 
-        print("finish images id ", im['id'])
-        print(f"Progress: {count*100/total_num:.2f}% ({count}/{total_num})")
+        # print("finish images id ", im['id'])
+        # print(f"Progress: {count*100/total_num:.2f}% ({count}/{total_num})")
         count += 1
 
 
